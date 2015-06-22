@@ -29,9 +29,13 @@
 #### データセットの読み込み
 scikit-learnに組み込まれているため以下のようにデータを読み込める
 
-```
+```python
 from sklearn.datasets import load_boston
 boston = load_boston()
 ```
 
-
+`boston` オブジェクトは属性 (attribute) をいくつか持ち 、主に以下を用いる
+- `boston.data` : 特徴量がいろいろ入っている
+- `boston.target` : ラベル、各エリアの家の値段の中央値 (今回の問題の目標変数 : target variable)
+     
+`boston. DESCR`, `boston.feature_names` でデータセットの詳細が確認できる。
