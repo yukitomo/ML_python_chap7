@@ -122,9 +122,24 @@ np.linalg.lstsq は、二乗誤差の合計を返す (total_error)。つまり�
 
 バイアス項を用いなかった場合、RMSE は 7.6 であるのに対して、バイアス項を追加した場合は 6.6 に改善される。この結果から、私たちが予測する家の値段の誤差(実際の値段との差)は多くても1300(e^6.6 *2)ドルの範囲内に収まるであろうと考えられる。
 
+###7.1.1 多次元回帰
+全ての要素を特徴量として用いる。
+
+	入力 : 複数の特徴量
+	出力 :  一つの値(家の値段の平均)の予測
 
 
-
+```python
+x = boston.data
+# np.concatenateは二つの配列・リストを結合する
+# vは複数の要素を持つ配列であるため、np.concatenateを用いて、バイアス項を追加
+x = np.array([np.concatenate( [ v,[1] ] ) for v in x]) #教科書の例はカッコが足りない
+y = boston.target
+s,total_error,_,_ = np.linalg.lstsq(x,y)
+rmse = np.sqrt(total_error[0]/len(x))
+```
+`RMSE on training: 4.6795063006355182`
+sに各特徴量に対応した傾きが格納される。RMSEの評価値は4.7となり、前よりも良くなった。
 
 
 
