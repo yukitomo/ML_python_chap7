@@ -139,6 +139,7 @@ s,total_error,_,_ = np.linalg.lstsq(x,y)
 rmse = np.sqrt(total_error[0]/len(x))
 ```
 `RMSE on training: 4.6795063006355182`
+
 sに各特徴量に対応した傾きが格納される。RMSEの評価値は4.7となり、前よりも良くなった。
 
 
