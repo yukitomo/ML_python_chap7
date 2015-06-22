@@ -1,5 +1,5 @@
 # Bulding Machine Learning Systems with Python
-# 実践 機械学習
+# 実践 機械学習システム
 
 ## 7章 回帰:レコメンド
 - 最小二乗法による回帰(古典的手法)の復習
@@ -141,6 +141,27 @@ rmse = np.sqrt(total_error[0]/len(x))
 `RMSE on training: 4.6795063006355182`
 
 sに各特徴量に対応した傾きが格納される。RMSEの評価値は4.7となり、前よりも良くなった。
+
+###7.1.2 回帰における交差検定
+- 「分類器を評価するために交差検定を用いることが大切である」
+- 回帰
+	- 交差検定が常に行われるとは限らない
+	- これまでの例では訓練誤差だけを用いて議論
+	- 最小二乗法はとても単純なモデルであるため、大きな誤りを起こすことは多くはない
+
+しかし、汎化に関する能力について考察を行うのであれば、正しい実験に基づいて評価すべきである。
+
+#### scikit-learn を用いた交差検定
+##### LinearRegression
+線形回帰専用のクラスであり、最小二乗法による回帰は以下のように行える。
+
+```python
+from sklearn.linear_model import LinearRegression
+lr = LinearRegression(fit_intercept=True)
+```
+`fit_intercept=True` : バイアス項を追加
+
+
 
 
 
