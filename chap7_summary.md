@@ -161,12 +161,66 @@ lr = LinearRegression(fit_intercept=True)
 ```
 `fit_intercept=True` : バイアス項を追加
 
+次にやることは以前と同じだが、より便利なインターフェイスである`fit()`, `predict()`を利用し、学習と予測を行う。（教科書では `map()`も利用しているが、バージョンが変わったせいか必要無し)
+
+```python 
+lr.fit(x,y) #学習
+p = lr.predict(x) #予測
+e = p-y #訓練誤差
+total_error = np.sum(e*e) #二乗誤差
+rmse_train = np.sqrt(total_error/len(p)) #訓練RMSE
+print('RMSE on training: {}'.format(rmse_train))
+```
+
+`RMSE on training: 4.67950630064`
+
+ここでは7.1.1とは違い訓練データのRMSEを`sklearn.linear_model.LinearRegression`を利用して求めた。結果は同じ4.6になる。
+
+##### 10-fold cross validation １０分割交差検定
+`sklearn.cross_validation.KFold`を利用し、10分割の交差検定を行い、線形回帰の汎化能力についての評価を行う。
+
+```python
+from sklearn.cross_validation import KFold 
+kf = KFold(len(x), n_folds=10)
+err = 0
+for train, test in kf:
+    lr.fit(x[train],y[train])
+    p = lr.predict(x[test])
+    e = p-y[test]
+    err += np.sum(e*e)
+rmse_10cv = np.sqrt(err/len(x))
+print('RMSE on 10-fold CV: {}'.format(rmse_10cv))
+```
+`RMSE on 10-fold CV: 5.88192507243`
+結果は5.6になり、訓練誤差4.6より大きくなる。交差検定では、学習データとテストデータを分割するため汎化能力についてより正しい評価を行っていると言える。
+
+##### 最小二乗法
+- モデルが単純
+- 予測が高速
 
 
+##7.2 罰則付き回帰
 
+##### 罰則付き回帰(penalized regression)
+- 最小二乗法による回帰から派生した手法
+- パラメータが過剰に適合するのに対して罰則を追加
+	- 通常の回帰 : 訓練データに最も適合したパラメータを返すが過学習の可能性がある
+- 「バイアス - バリアンスのトレードオフ」の一例	
 
+### 7.2.1 L1, L2罰則項
+##### 回帰で用いる罰則項(正規化項)
+- L1 : 係数の絶対値の和
+- L2 : 係数の二乗和
 
+最小二乗法による最適化を行う式：目標変数である y と二乗距離が最小となるようなベクトル b を見つける。
 
+![式7−1](img/formula1.png)
+
+L1罰則項 「Lasso回帰」 の追加：誤差を小さくすると同時に係数 (絶対値の項)も小さくする。
+![式7−2](img/formula2.png)
+
+L2罰則項「Ridge回帰」の追加：二乗を罰則として用いる
+![式7−3](img/formula3.png)
 
 
 
