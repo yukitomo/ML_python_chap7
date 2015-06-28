@@ -212,6 +212,7 @@ print('RMSE on 10-fold CV: {}'.format(rmse_10cv))
 - L1 : 係数の絶対値の和
 - L2 : 係数の二乗和
 
+##### 式による説明
 最小二乗法による最適化を行う式：目標変数である y と二乗距離が最小となるようなベクトル b を見つける。
 
 ![式7−1](img/formula1.png)
@@ -221,6 +222,209 @@ L1罰則項 「Lasso回帰」 の追加：誤差を小さくすると同時に�
 
 L2罰則項「Ridge回帰」の追加：二乗を罰則として用いる
 ![式7−3](img/formula3.png)
+
+##### 特徴
+- ElasticNet : L1, L2 を組み合わせたもの
+- 罰則項を用いない場合の回帰に比べて、係数の値はより小さくなる
+- `λ` によって罰則の強さを調整(`λ`が0に近づくにつれ最小二乗法に近づく)
+- Lasso回帰 (L1)
+	- より多くの係数が 0 になる(入力された特徴量の中でいくつかの要素を使用しない)
+	- 特徴選択（上記）と回帰の両方を同時に行う
+
+### 7.2.2 scikit-learnのLassoとElastic netを使用する
+#### Elastic Net の利用
+以下のようなコードでElasticNetが利用できる。
+L1 罰則項を追加する場合は Lasso クラス、L2 罰則項を追加する場合は Ridge クラスが利用できる。
+
+```python
+from sklearn.linear_model import ElasticNet
+en = ElasticNet(fit_intercept=True, alpha=0.5)
+```
+
+##### 訓練誤差
+
+```python
+en.fit(x,y)
+p = en.predict(x)
+e = p-y
+total_error = np.sum(e*e)
+rmse_train = np.sqrt(total_error/len(p))
+print('RMSE on training: {}'.format(rmse_train))
+```
+
+`RMSE on training: 4.98547427243`
+
+##### 交差検定
+```python
+err = 0
+for train, test in kf:
+    en.fit(x[train],y[train]) 
+    p = en.predict( x[test])
+    e = p-y[test]
+    err += np.sum(e*e)
+rmse_10cv = np.sqrt(err/len(x))
+print('RMSE on 10-fold CV: {}'.format(rmse_10cv))
+```
+`RMSE on 10-fold CV: 5.47790646659`
+
+##### 評価
+- 訓練誤差は 5.0(前は 4.6)に増加、交差検定を用いた誤差は 5.4(前は 5.6)に減少
+- 訓練誤差は大きくなったが、汎化性能が向上
+
+##### 罰則項を利用しない場合とLasso回帰の場合の比較
+###### 図7.3
+- 点線 : 罰則項を用いない場合の回帰
+- 実線 : Lasso 回帰の場合
+
+Lasso 回帰のほうが、直線が水平に近くなっていることがわかる。まだ、Lasso 回帰の恩恵が明確ではないが、入力変数が多い場合、より顕著にその恩恵がわかるだろう。それでは、入力変数が多い場合を考察していく。
+![図7−3](img/figure3.png)
+
+
+## 7.3 PがNより大きい場合(P greater than N)
+
+	P : 特徴量の数
+	N : サンプルデータの数
+	
+特徴量の数がサンプルデータの数より大きいことが「P が N より大きい」という表現で知られる
+
+	入力：何かが書かれたテキストの集合
+	特徴量 : 辞書に存在する単語を特徴量として回帰
+	英単語 は 20000単語以上存在する (ステミングを行って、共通単語だけ考慮した場合の数字) 
+
+例えば上記のような条件で、サンプルデータが数百または数千の場合、サンプルの数より特徴量の数のほうが大きくなる。
+
+##### PがNより大きい場合
+- サンプル数より特徴量の数のほうが大きいため、訓練データに対して完全にあてはめることが可能
+- 連立方程式の数が変数の数より小さい場合、常に連立方程式の解を求めることができる(実際、連立方程式を満たす解は無限に存在)
+
+つまり、訓練誤差が 0 になるような回帰係数を求めることができる。しかし、訓練誤差が 0 であるということは、汎化能力があることを意味せず、実際には汎化能力は極めて低くなるため、罰則項の効果を実感できるはずである。
+
+
+#### 7.3.1 テキストに基づいたサンプルデータ
+- テーマ：「10-K reports」のデータマイニング
+	- 10-K reports : アメリカの SEC(米証券取引委員会)に提出する決算報告書
+
+- 目標：その公になっている情報を基に、企業の株の推移を予測すること
+	- 訓練データとして過去の データを用いるので、実際何が起こったかということについては既にわかっています。
+
+- データ
+	- 特徴量の数のほうがサンプルデータの数より大きい
+	- サンプルデータ数 : 16,087 個 
+	- 特徴量 : 個別の単語に対応 (150,360個)
+
+
+
+##### データのDownload
+180MB
+
+```bash
+curl -O http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/regression/E2006.train.bz2
+bunzip2 E2006.train.bz2
+```
+
+##### データの読み込み
+データセットは SVMLight というフォーマットであり以下のように読み込める。
+`target` は単純な一次元のベクトル、`data` は疎行列(ほとんどの要素が 0 であ るため、0 でない要素のみメモリに格納されます)
+
+```python
+from sklearn.datasets import load_svmlight_file
+data,target = load_svmlight_file('data/E2006.train')
+```
+
+###### target の要素の確認
+
+```python
+print('Min target value: {}'.format(target.min()))
+print('Max target value: {}'.format(target.max()))
+print('Mean target value: {}'.format(target.mean()))
+print('Std. dev. target: {}'.format(target.std()))
+```
+
+以下の結果からデータは -7.9から -0.5の間にあることがわかる。
+
+```
+Min target value: -7.89957807347
+Max target value: -0.51940952694
+Mean target value: -3.51405313669
+Std. dev. target: 0.632278353911
+```
+
+##### 最小二乗法
+まずは最小二乗法から見てみる。
+また、平均二乗誤差を計算するのにより便利な関数 `sklearn.metrics.mean_squared_error`を利用して訓練誤差を求めると以下のようなコードとなる。
+
+###### 訓練誤差
+```python 
+import numpy as np
+from sklearn.metrics import mean_squared_error 
+from sklearn.linear_model import LinearRegression
+lr = LinearRegression()
+lr.fit(data, target)
+pred = lr.predict(data)
+print('RMSE on training, {:.2}'.format(np.sqrt(mean_squared_error(target, pred))))
+```
+`RMSE on training, 0.0024`
+
+訓練誤差は0.0024となり、完全に0にはならないが、これは丸め誤差が原因である。
+次に交差検定を見てみる。
+
+###### 交差検定
+```python
+from sklearn.cross_validation import KFold
+lr = LinearRegression()
+pred = np.zeros_like(target)
+kf = KFold(len(target), n_folds=5)
+for train, test in kf:
+    lr.fit(data[train], target[train])
+    pred[test] = lr.predict(data[test])
+print('RMSE on testing (5 fold), {:.2}'.format(np.sqrt(mean_squared_error(target, pred))))
+```
+`RMSE on testing (5 fold), 0.75`
+訓練誤差の場合と全く異なる結果となり、データの平均 が -3.5 であるので、標準偏差が 0.6 であることを考えると、
+常に値が -3.5 と予測したとしてもRMSEは0.6程度にしかならないはずである。したがって、最小二乗法で訓練をした場合、改悪されたということになる。
+
+##### ElasticNet
+###### 正則化
+- 過学習への対応策
+- elastic netを用いて罰則パラメータ(λ)を 1 とする
+
+###### 交差検定
+
+```python
+from sklearn.linear_model import ElasticNet
+met = ElasticNet(alpha=0.1) # λ = 1 ?
+kf = KFold(len(target), n_folds=5)
+pred = np.zeros_like(target)
+for train, test in kf:
+    met.fit(data[train], target[train])
+    pred[test] = met.predict(data[test])
+print('[EN 0.1] RMSE on testing (5 fold), {:.2}'.format(np.sqrt(mean_squared_error(target, pred))))
+```
+
+`[EN 0.1] RMSE on testing (5 fold), 0.4`
+
+RMSE は 0.4 になり、常に平均値を予測結果とする場合よりも良い結果となる。
+
+### 7.3.2 ハイパ-パラメータの賢い設定方法
+##### 罰則パラメータは様々な値が設定でき、結果も異なる
+- 大きい値を設定した場合
+	- 未学習の可能性が高くなる
+	- 極端な場合として、 学習の結果、全ての係数が 0 になる
+- 極端に小さい値を設定した場合
+	- 最小二乗法に近づき、過学習、汎化能力が低下
+
+##### 交差検定
+- 最適なパラメータを設定する問題の一般的な解決策
+- パラメータ候補を用意し、交差検定を用いて最適な値を一つ選出
+- 時間がかかるが、公平な結果が期待できる
+- 汎化能力を評価し最適なパラメータを選択するためには、二段階の交差検定が必要
+
+##### 二段階の交差検定
+- 一段階目：汎化能力を評価するため
+- 二段階目：最適なパラメータを得るため
+
+![図7−4](img/figure4.png)
+
 
 
 
