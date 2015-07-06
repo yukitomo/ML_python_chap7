@@ -451,6 +451,7 @@ print('[EN CV] RMSE on testing (5 fold), {:.2}'.format(np.sqrt(mean_squared_erro
 ```
 
 `[EN CV] RMSE on testing (5 fold), 0.37`
+
 二段階の交差検定により、よりよい結果が得られた
 
 
@@ -499,7 +500,8 @@ print('[EN CV] RMSE on testing (5 fold), {:.2}'.format(np.sqrt(mean_squared_erro
 
 ###### モデルの学習
 疎行列を扱う。疎行列の要素は、ほとんどが 0 だが、評価付けされた映画に対しては 1 から 5 までの値を持つ(評価付けされていない映画がほとんどで、それらは0)。今回は、回帰モデルとしてLassoCVを用いる。
-```
+
+```python
 import numpy as np
 from scipy import sparse 
 from sklearn.cross_validation import KFold
@@ -514,8 +516,8 @@ reg = LassoCV(fit_intercept=True, alphas=[.125,.25,.5,1.,2.,4.]) #回帰モデ�
 ```python
 u = reviews[i]
 ```
-対象とするユーザを `u` とした場合、そのユーザのための映画の評価方法をモデル化したい。
-対象ユーザ u が評価付けした映画に対してだけに興味があるため、評価付けされた映画のインデックスを抜き出す必要がある。
+対象とするユーザを上記のようにi番目のユーザ `u` とした場合、そのユーザのための映画の評価方法をモデル化する。
+対象ユーザ u が評価付けした映画における、他のユーザの評価を利用して以下のように回帰の学習モデルを定義する。また、比較のために、その他のユーザによる映画の評価値の平均値を予測した場合の誤差も導出する。
 
 ```python
 def learn_for(i):
@@ -542,9 +544,10 @@ def learn_for(i):
         # テストのときも同様に正規化
         xc, x1 = movie_norm(x[test])
         p = np.array([reg.predict(xi) for xi in xc]).ravel()
-        e = (p + x1) - y[test]
-        err += np.sum(e * e)
-        eb += np.sum((y[train].mean() - y[test]) ** 2)
+        e = (p + x1) - y[test] #汎化誤差
+        err += np.sum(e * e) #二乗誤差の総和
+        eb += np.sum((y[train].mean() - y[test]) ** 2) #平均値を予測値とした場合の二乗誤差の総和
+    #回帰によるrmse, 平均値を予測値とした場合のrmse
     return np.sqrt(err / float(len(y))), np.sqrt(eb / float(len(y)))
 ```
 
@@ -561,9 +564,30 @@ def movie_norm(xc):
     #0 以外の要素を対象にして、映画に対する評価の平均値を引くことで、正規化
     for i in range(xc.shape[0]):
         xc[i] -= (xc[i] > 0) * x1[i]
-    #正規化した配列 , 平均値を返す
+    #正規化した各ユーザの評価値の配列 , スコアの平均値を返す
     return xc, x1
 ```
+###### 実際の結果
+
+```python
+reg_count = 0
+mean_count = 0
+# 各ユーザごとに回帰で学習し、ただ平均値を出力する場合と汎化誤差を比較
+for i in range(reviews.shape[0]):
+	#回帰によるrmseスコア、予測を平均値にした場合のrmseスコア
+    regression_score, mean_score = learn_for(i)
+    boolian = regression_score < mean_score 
+    if boolian:
+        reg_count += 1
+    else:
+        mean_count += 1
+    print(boolian) 
+    print regression_score,  mean_score
+print "回帰の方がrmseが小さかった割合 : %s"%str(float(reg_count)/(reg_count + mean_count) )
+```
+
+`回帰の方がrmseが小さかった割合 : 0.799575821845`
+
 
 ###### 評価
 - 特定ユーザがある映画に対してどのような評価を与えるかを予測する場合
